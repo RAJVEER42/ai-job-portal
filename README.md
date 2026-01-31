@@ -1,4 +1,10 @@
-# 🚀 AI-Powered Job Portal
+<h1 align="center">🚀 AI-Powered Job Portal</h1>
+---
+
+<img width="3022" height="1712" alt="image" src="https://github.com/user-attachments/assets/157eb0a7-a9f4-4117-98e7-71b6c590591a" />
+<img width="3024" height="1714" alt="image" src="https://github.com/user-attachments/assets/4080e3eb-f67c-4854-a0e5-d23fbfd0e4fc" />
+
+---
 
 A comprehensive, enterprise-grade job portal application featuring AI-powered matching, modern UI/UX, and production-ready infrastructure.
 
