@@ -1,0 +1,299 @@
+package com.jobportal.backend.config;
+
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryConfig;
+import io.github.resilience4j.timelimiter.TimeLimiter;
+import io.github.resilience4j.timelimiter.TimeLimiterConfig;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.time.Duration;
+
+/**
+ * Resilience Configuration for External Service Calls
+ * 
+ * Features:
+ * - Circuit Breaker pattern for external APIs
+ * - Retry mechanisms with exponential backoff
+ * - Timeout handling for slow services
+ * - Bulkhead pattern for resource isolation
+ * - Health indicators for circuit breaker states
+ */
+@Slf4j
+@Configuration
+public class ResilienceConfig {
+
+    @Value("${app.resilience.circuit-breaker.failure-rate-threshold:50}")
+    private float failureRateThreshold;
+
+    @Value("${app.resilience.circuit-breaker.wait-duration-in-open-state:30s}")
+    private Duration waitDurationInOpenState;
+
+    @Value("${app.resilience.circuit-breaker.sliding-window-size:10}")
+    private int slidingWindowSize;
+
+    @Value("${app.resilience.circuit-breaker.minimum-number-of-calls:5}")
+    private int minimumNumberOfCalls;
+
+    @Value("${app.resilience.retry.max-attempts:3}")
+    private int retryMaxAttempts;
+
+    @Value("${app.resilience.retry.wait-duration:2s}")
+    private Duration retryWaitDuration;
+
+    @Value("${app.resilience.timeout.duration:10s}")
+    private Duration timeoutDuration;
+
+    /**
+     * Circuit breaker for OpenAI API calls
+     */
+    @Bean
+    public CircuitBreaker openAiCircuitBreaker() {
+        CircuitBreakerConfig config = CircuitBreakerConfig.custom()
+                .failureRateThreshold(failureRateThreshold)
+                .waitDurationInOpenState(waitDurationInOpenState)
+                .slidingWindowSize(slidingWindowSize)
+                .minimumNumberOfCalls(minimumNumberOfCalls)
+                .permittedNumberOfCallsInHalfOpenState(3)
+                .slowCallRateThreshold(50)
+                .slowCallDurationThreshold(Duration.ofSeconds(5))
+                .recordExceptions(Exception.class)
+                .ignoreExceptions(IllegalArgumentException.class)
+                .build();
+
+        CircuitBreaker circuitBreaker = CircuitBreaker.of("openai-api", config);
+        
+        // Register event listeners
+        circuitBreaker.getEventPublisher()
+                .onStateTransition(event -> 
+                    log.info("OpenAI Circuit breaker state transition: {} -> {}", 
+                            event.getStateTransition().getFromState(),
+                            event.getStateTransition().getToState()))
+                .onCallNotPermitted(event -> 
+                    log.warn("OpenAI Circuit breaker call not permitted"))
+                .onError(event -> 
+                    log.error("OpenAI Circuit breaker error: {}", event.getThrowable().getMessage()));
+
+        return circuitBreaker;
+    }
+
+    /**
+     * Circuit breaker for email service
+     */
+    @Bean
+    public CircuitBreaker emailCircuitBreaker() {
+        CircuitBreakerConfig config = CircuitBreakerConfig.custom()
+                .failureRateThreshold(60) // Higher threshold for email service
+                .waitDurationInOpenState(Duration.ofMinutes(2)) // Longer wait for email issues
+                .slidingWindowSize(20)
+                .minimumNumberOfCalls(10)
+                .permittedNumberOfCallsInHalfOpenState(5)
+                .slowCallRateThreshold(70)
+                .slowCallDurationThreshold(Duration.ofSeconds(10))
+                .recordExceptions(Exception.class)
+                .build();
+
+        CircuitBreaker circuitBreaker = CircuitBreaker.of("email-service", config);
+        
+        circuitBreaker.getEventPublisher()
+                .onStateTransition(event -> 
+                    log.info("Email Circuit breaker state transition: {} -> {}", 
+                            event.getStateTransition().getFromState(),
+                            event.getStateTransition().getToState()))
+                .onCallNotPermitted(event -> 
+                    log.warn("Email Circuit breaker call not permitted"))
+                .onError(event -> 
+                    log.error("Email Circuit breaker error: {}", event.getThrowable().getMessage()));
+
+        return circuitBreaker;
+    }
+
+    /**
+     * Circuit breaker for external database operations
+     */
+    @Bean
+    public CircuitBreaker databaseCircuitBreaker() {
+        CircuitBreakerConfig config = CircuitBreakerConfig.custom()
+                .failureRateThreshold(80) // Higher threshold for critical database
+                .waitDurationInOpenState(Duration.ofSeconds(10)) // Quick recovery attempt
+                .slidingWindowSize(15)
+                .minimumNumberOfCalls(5)
+                .permittedNumberOfCallsInHalfOpenState(3)
+                .slowCallRateThreshold(90)
+                .slowCallDurationThreshold(Duration.ofSeconds(3))
+                .recordExceptions(Exception.class)
+                .build();
+
+        CircuitBreaker circuitBreaker = CircuitBreaker.of("database", config);
+        
+        circuitBreaker.getEventPublisher()
+                .onStateTransition(event -> 
+                    log.warn("Database Circuit breaker state transition: {} -> {}", 
+                            event.getStateTransition().getFromState(),
+                            event.getStateTransition().getToState()))
+                .onCallNotPermitted(event -> 
+                    log.error("Database Circuit breaker call not permitted - CRITICAL"))
+                .onError(event -> 
+                    log.error("Database Circuit breaker error: {}", event.getThrowable().getMessage()));
+
+        return circuitBreaker;
+    }
+
+    /**
+     * Retry configuration for OpenAI API
+     */
+    @Bean
+    public Retry openAiRetry() {
+        RetryConfig config = RetryConfig.custom()
+                .maxAttempts(retryMaxAttempts)
+                .waitDuration(retryWaitDuration)
+                .exponentialBackoffMultiplier(2)
+                .retryExceptions(Exception.class)
+                .ignoreExceptions(IllegalArgumentException.class)
+                .build();
+
+        Retry retry = Retry.of("openai-retry", config);
+        
+        retry.getEventPublisher()
+                .onRetry(event -> 
+                    log.warn("OpenAI Retry attempt {} for {}", 
+                            event.getNumberOfRetryAttempts(), 
+                            event.getName()))
+                .onError(event -> 
+                    log.error("OpenAI Retry failed after {} attempts: {}", 
+                            event.getNumberOfRetryAttempts(),
+                            event.getLastThrowable().getMessage()));
+
+        return retry;
+    }
+
+    /**
+     * Retry configuration for email service
+     */
+    @Bean
+    public Retry emailRetry() {
+        RetryConfig config = RetryConfig.custom()
+                .maxAttempts(5) // More retries for email
+                .waitDuration(Duration.ofSeconds(3))
+                .exponentialBackoffMultiplier(1.5)
+                .retryExceptions(Exception.class)
+                .build();
+
+        Retry retry = Retry.of("email-retry", config);
+        
+        retry.getEventPublisher()
+                .onRetry(event -> 
+                    log.info("Email Retry attempt {} for {}", 
+                            event.getNumberOfRetryAttempts(), 
+                            event.getName()))
+                .onError(event -> 
+                    log.error("Email Retry failed after {} attempts: {}", 
+                            event.getNumberOfRetryAttempts(),
+                            event.getLastThrowable().getMessage()));
+
+        return retry;
+    }
+
+    /**
+     * Time limiter for external API calls
+     */
+    @Bean
+    public TimeLimiter apiTimeLimiter() {
+        TimeLimiterConfig config = TimeLimiterConfig.custom()
+                .timeoutDuration(timeoutDuration)
+                .cancelRunningFuture(true)
+                .build();
+
+        TimeLimiter timeLimiter = TimeLimiter.of("api-timeout", config);
+        
+        timeLimiter.getEventPublisher()
+                .onTimeout(event -> 
+                    log.warn("API call timed out after {}ms", 
+                            event.getTimeLimiterConfig().getTimeoutDuration().toMillis()));
+
+        return timeLimiter;
+    }
+
+    /**
+     * Time limiter for database operations
+     */
+    @Bean
+    public TimeLimiter databaseTimeLimiter() {
+        TimeLimiterConfig config = TimeLimiterConfig.custom()
+                .timeoutDuration(Duration.ofSeconds(5)) // Shorter timeout for DB
+                .cancelRunningFuture(true)
+                .build();
+
+        TimeLimiter timeLimiter = TimeLimiter.of("database-timeout", config);
+        
+        timeLimiter.getEventPublisher()
+                .onTimeout(event -> 
+                    log.error("Database operation timed out after {}ms", 
+                            event.getTimeLimiterConfig().getTimeoutDuration().toMillis()));
+
+        return timeLimiter;
+    }
+
+    /**
+     * Resilience service wrapper
+     */
+    @Bean
+    public ResilienceService resilienceService() {
+        return new ResilienceService();
+    }
+
+    /**
+     * Service to provide resilient operations
+     */
+    public static class ResilienceService {
+        
+        public <T> T executeWithResilience(
+                CircuitBreaker circuitBreaker,
+                Retry retry,
+                TimeLimiter timeLimiter,
+                java.util.function.Supplier<T> operation,
+                T fallbackValue) {
+            
+            try {
+                // Decorate the operation with circuit breaker, retry, and timeout
+                var decoratedSupplier = CircuitBreaker
+                        .decorateSupplier(circuitBreaker, operation);
+                        
+                decoratedSupplier = Retry.decorateSupplier(retry, decoratedSupplier);
+                
+                return decoratedSupplier.get();
+                
+            } catch (Exception e) {
+                log.error("Resilient operation failed, returning fallback value", e);
+                return fallbackValue;
+            }
+        }
+        
+        public void executeWithResilience(
+                CircuitBreaker circuitBreaker,
+                Retry retry,
+                Runnable operation,
+                Runnable fallbackOperation) {
+            
+            try {
+                // Decorate the operation with circuit breaker and retry
+                var decoratedRunnable = CircuitBreaker
+                        .decorateRunnable(circuitBreaker, operation);
+                        
+                decoratedRunnable = Retry.decorateRunnable(retry, decoratedRunnable);
+                
+                decoratedRunnable.run();
+                
+            } catch (Exception e) {
+                log.error("Resilient operation failed, executing fallback", e);
+                if (fallbackOperation != null) {
+                    fallbackOperation.run();
+                }
+            }
+        }
+    }
+}

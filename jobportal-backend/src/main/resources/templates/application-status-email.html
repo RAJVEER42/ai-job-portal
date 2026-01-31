@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Status Update</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background-color: white; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-align: center; padding: 30px; }
+        .content { padding: 30px; }
+        .status-badge { display: inline-block; padding: 8px 16px; border-radius: 20px; font-weight: bold; margin: 10px 0; }
+        .status-received { background-color: #e3f2fd; color: #1976d2; }
+        .status-under-review { background-color: #fff3e0; color: #f57c00; }
+        .status-interview { background-color: #e8f5e8; color: #388e3c; }
+        .status-accepted { background-color: #e8f5e8; color: #2e7d32; }
+        .status-rejected { background-color: #ffebee; color: #d32f2f; }
+        .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; }
+        .btn { display: inline-block; padding: 12px 24px; background-color: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Application Status Update</h1>
+        </div>
+        
+        <div class="content">
+            <h2>Hello <span th:text="${data.candidateName}">Candidate</span>,</h2>
+            
+            <p>We have an update regarding your application for the position:</p>
+            <h3 th:text="${data.jobTitle}">Job Title</h3>
+            <p><strong>Company:</strong> <span th:text="${data.companyName}">Company Name</span></p>
+            
+            <div class="status-update">
+                <p><strong>Status:</strong></p>
+                <span th:class="|status-badge status-${#strings.toLowerCase(data.status)}|" th:text="${data.status}">Status</span>
+            </div>
+            
+            <div th:if="${data.statusMessage}" class="status-message">
+                <p><strong>Message:</strong></p>
+                <p th:text="${data.statusMessage}">Status message</p>
+            </div>
+            
+            <div th:if="${data.nextSteps}" class="next-steps">
+                <p><strong>Next Steps:</strong></p>
+                <p th:text="${data.nextSteps}">Next steps</p>
+            </div>
+            
+            <div th:if="${data.contactEmail}" class="contact-info">
+                <p><strong>Questions?</strong> Contact us at: 
+                    <a th:href="|mailto:${data.contactEmail}|" th:text="${data.contactEmail}">contact@company.com</a>
+                </p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>&copy; <span th:text="${currentYear}">2024</span> <span th:text="${companyName}">JobPortal</span>. All rights reserved.</p>
+            <p>You received this email because you applied for a job through our platform.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success-bg { background: #d4edda; }
+        .error-bg { background: #f8d7da; }
+        .info-bg { background: #d1ecf1; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Enterprise Job Portal - API Connection Test</h1>
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+        const resultsDiv = document.getElementById('results');
+
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-result ${type} ${type}-bg`;
+            div.innerHTML = message;
+            resultsDiv.appendChild(div);
+        }
+
+        async function testAPI() {
+            addResult('🚀 Starting API Connection Tests...', 'info');
+
+            // Test 1: Basic connectivity
+            try {
+                addResult('📡 Testing basic connectivity...', 'info');
+                const response = await fetch(`${API_BASE}/jobs`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ Jobs API: SUCCESS - Found ${data.data.length} jobs`, 'success');
+                } else {
+                    addResult(`❌ Jobs API: FAILED - Status ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Jobs API: FAILED - ${error.message}`, 'error');
+            }
+
+            // Test 2: Auth endpoint
+            try {
+                addResult('🔐 Testing auth endpoint...', 'info');
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'test@example.com',
+                        password: 'test123'
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ Auth API: SUCCESS - Token received`, 'success');
+                } else {
+                    addResult(`❌ Auth API: FAILED - Status ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Auth API: FAILED - ${error.message}`, 'error');
+            }
+
+            // Test 3: Admin endpoints
+            try {
+                addResult('👨‍💼 Testing admin endpoints...', 'info');
+                const response = await fetch(`${API_BASE}/admin/cache/stats`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer mock-token'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ Admin API: SUCCESS - Cache stats received`, 'success');
+                } else {
+                    addResult(`❌ Admin API: FAILED - Status ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Admin API: FAILED - ${error.message}`, 'error');
+            }
+
+            // Test 4: CORS headers
+            try {
+                addResult('🌐 Testing CORS configuration...', 'info');
+                const response = await fetch(`${API_BASE}/jobs`, {
+                    method: 'GET'
+                });
+                
+                const corsHeaders = {
+                    'access-control-allow-origin': response.headers.get('access-control-allow-origin'),
+                    'access-control-allow-methods': response.headers.get('access-control-allow-methods'),
+                    'access-control-allow-headers': response.headers.get('access-control-allow-headers')
+                };
+
+                addResult(`✅ CORS Headers: ${JSON.stringify(corsHeaders, null, 2)}`, 'success');
+            } catch (error) {
+                addResult(`❌ CORS Test: FAILED - ${error.message}`, 'error');
+            }
+
+            addResult('🎉 API Connection Tests Completed!', 'info');
+        }
+
+        // Run tests
+        testAPI();
+    </script>
+</body>
+</html>

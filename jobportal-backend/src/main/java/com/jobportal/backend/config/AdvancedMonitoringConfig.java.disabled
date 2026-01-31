@@ -1,0 +1,172 @@
+package com.jobportal.backend.config;
+
+import io.micrometer.core.aop.TimedAspect;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+
+import javax.sql.DataSource;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.util.concurrent.atomic.AtomicLong;
+
+/**
+ * Simplified Monitoring Configuration
+ * 
+ * Features:
+ * - Basic business metrics
+ * - JVM monitoring
+ * - Performance tracking
+ */
+@Slf4j
+@Configuration
+@EnableScheduling
+@RequiredArgsConstructor
+public class AdvancedMonitoringConfig {
+
+    private final MeterRegistry meterRegistry;
+
+    @Value("${spring.application.name:jobportal-backend}")
+    private String applicationName;
+
+    // Custom metrics
+    private final AtomicLong activeUserSessions = new AtomicLong(0);
+    private final AtomicLong totalJobApplications = new AtomicLong(0);
+    private final AtomicLong totalJobPostings = new AtomicLong(0);
+    private final AtomicLong totalRegisteredUsers = new AtomicLong(0);
+
+    /**
+     * Enable @Timed annotations
+     */
+    @Bean
+    public TimedAspect timedAspect(MeterRegistry registry) {
+        return new TimedAspect(registry);
+    }
+
+    /**
+     * Business Metrics Bean
+     */
+    @Bean
+    public BusinessMetrics businessMetrics() {
+        return new BusinessMetrics();
+    }
+
+    /**
+     * System Metrics Bean
+     */
+    @Bean
+    public SystemMetrics systemMetrics() {
+        return new SystemMetrics();
+    }
+
+    /**
+     * Custom business metrics collector
+     */
+    public class BusinessMetrics {
+        private final Counter jobApplicationCounter;
+        private final Counter jobPostingCounter;
+        private final Counter userRegistrationCounter;
+        private final Counter loginCounter;
+        private final Counter emailSentCounter;
+        private final Timer databaseQueryTimer;
+
+        public BusinessMetrics() {
+            // Business Counters
+            jobApplicationCounter = Counter.builder("jobportal.applications.submitted")
+                    .description("Total number of job applications submitted")
+                    .register(meterRegistry);
+
+            jobPostingCounter = Counter.builder("jobportal.jobs.posted")
+                    .description("Total number of jobs posted")
+                    .register(meterRegistry);
+
+            userRegistrationCounter = Counter.builder("jobportal.users.registered")
+                    .description("Total number of user registrations")
+                    .register(meterRegistry);
+
+            loginCounter = Counter.builder("jobportal.users.logins")
+                    .description("Total number of user logins")
+                    .register(meterRegistry);
+
+            emailSentCounter = Counter.builder("jobportal.emails.sent")
+                    .description("Total number of emails sent")
+                    .register(meterRegistry);
+
+            // Performance Timer
+            databaseQueryTimer = Timer.builder("jobportal.database.query.duration")
+                    .description("Database query execution time")
+                    .register(meterRegistry);
+
+            // Gauge Metrics
+            Gauge.builder("jobportal.users.active.sessions")
+                    .description("Number of active user sessions")
+                    .register(meterRegistry, activeUserSessions, AtomicLong::get);
+
+            Gauge.builder("jobportal.applications.total")
+                    .description("Total job applications in system")
+                    .register(meterRegistry, totalJobApplications, AtomicLong::get);
+        }
+
+        // Public methods to update metrics
+        public void incrementJobApplications() { jobApplicationCounter.increment(); }
+        public void incrementJobPostings() { jobPostingCounter.increment(); }
+        public void incrementUserRegistrations() { userRegistrationCounter.increment(); }
+        public void incrementLogins() { loginCounter.increment(); }
+        public void incrementEmailsSent() { emailSentCounter.increment(); }
+        
+        public Timer.Sample startDatabaseQueryTimer() { return Timer.start(meterRegistry); }
+        public void recordDatabaseQuery(Timer.Sample sample) { sample.stop(databaseQueryTimer); }
+
+        // Update gauge values
+        public void setActiveUserSessions(long count) { activeUserSessions.set(count); }
+        public void setTotalJobApplications(long count) { totalJobApplications.set(count); }
+    }
+
+    /**
+     * System-level metrics collector
+     */
+    public class SystemMetrics {
+        private final MemoryMXBean memoryBean;
+
+        public SystemMetrics() {
+            memoryBean = ManagementFactory.getMemoryMXBean();
+            
+            // JVM Memory Metrics
+            Gauge.builder("jobportal.jvm.memory.used")
+                    .description("Used JVM memory in bytes")
+                    .register(meterRegistry, this, metrics -> memoryBean.getHeapMemoryUsage().getUsed());
+
+            Gauge.builder("jobportal.jvm.memory.max")
+                    .description("Maximum JVM memory in bytes")
+                    .register(meterRegistry, this, metrics -> memoryBean.getHeapMemoryUsage().getMax());
+
+            Gauge.builder("jobportal.jvm.memory.usage.percentage")
+                    .description("JVM memory usage percentage")
+                    .register(meterRegistry, this, metrics -> {
+                        long used = memoryBean.getHeapMemoryUsage().getUsed();
+                        long max = memoryBean.getHeapMemoryUsage().getMax();
+                        return max > 0 ? (double) used / max * 100 : 0;
+                    });
+        }
+    }
+
+    /**
+     * Scheduled task to update business metrics
+     */
+    @Scheduled(fixedRate = 30000) // Every 30 seconds
+    public void updateBusinessMetrics() {
+        try {
+            log.debug("Business metrics updated");
+        } catch (Exception e) {
+            log.error("Failed to update business metrics", e);
+        }
+    }
+}

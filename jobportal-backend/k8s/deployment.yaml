@@ -1,0 +1,576 @@
+# ========================================
+# JOBPORTAL BACKEND - KUBERNETES DEPLOYMENT
+# ========================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jobportal
+  labels:
+    name: jobportal
+    environment: production
+
+---
+# ========================================
+# CONFIGMAP FOR APPLICATION CONFIGURATION
+# ========================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jobportal-config
+  namespace: jobportal
+data:
+  # Application Configuration
+  SPRING_PROFILES_ACTIVE: "production"
+  SERVER_PORT: "8080"
+  
+  # Cache Configuration
+  CACHE_TYPE: "redis"
+  CACHE_ENABLED: "true"
+  CACHE_DEFAULT_TTL: "3600"
+  
+  # Database Configuration
+  DB_POOL_MAX_SIZE: "50"
+  DB_POOL_MIN_IDLE: "10"
+  
+  # Monitoring Configuration
+  METRICS_ENABLED: "true"
+  CACHE_METRICS_ENABLED: "true"
+  EMAIL_METRICS_ENABLED: "true"
+  
+  # Rate Limiting
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_RPM: "60"
+  
+  # Logging
+  LOG_LEVEL: "INFO"
+  LOG_REQUESTS: "true"
+  
+  # Health Checks
+  HEALTH_DB_ENABLED: "true"
+  HEALTH_CACHE_ENABLED: "true"
+  
+  # JVM Options
+  JAVA_OPTS: "-Xmx2g -Xms1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+
+---
+# ========================================
+# SECRET FOR SENSITIVE CONFIGURATION
+# ========================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jobportal-secrets
+  namespace: jobportal
+type: Opaque
+stringData:
+  # Database Secrets
+  POSTGRES_PASSWORD: "your-secure-postgres-password"
+  SPRING_DATASOURCE_PASSWORD: "your-secure-postgres-password"
+  
+  # Redis Secrets
+  REDIS_PASSWORD: "your-secure-redis-password"
+  
+  # Email Configuration
+  MAIL_USERNAME: "your-email@gmail.com"
+  MAIL_PASSWORD: "your-email-app-password"
+  
+  # JWT Secret
+  JWT_SECRET: "your-very-long-and-secure-jwt-secret-key-minimum-64-characters"
+  
+  # OpenAI API Key
+  OPENAI_API_KEY: "your-openai-api-key"
+
+---
+# ========================================
+# PERSISTENT VOLUME CLAIM FOR UPLOADS
+# ========================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jobportal-uploads-pvc
+  namespace: jobportal
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: fast-ssd
+
+---
+# ========================================
+# POSTGRESQL DATABASE DEPLOYMENT
+# ========================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: jobportal
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "jobportal_db"
+        - name: POSTGRES_USER
+          value: "postgres"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: jobportal-secrets
+              key: POSTGRES_PASSWORD
+        - name: PGDATA
+          value: "/var/lib/postgresql/data/pgdata"
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+            - -d
+            - jobportal_db
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+            - -d
+            - jobportal_db
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+
+---
+# ========================================
+# POSTGRESQL SERVICE
+# ========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: jobportal
+  labels:
+    app: postgres
+spec:
+  ports:
+  - port: 5432
+    targetPort: 5432
+  selector:
+    app: postgres
+  type: ClusterIP
+
+---
+# ========================================
+# POSTGRESQL PVC
+# ========================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: jobportal
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: fast-ssd
+
+---
+# ========================================
+# REDIS DEPLOYMENT
+# ========================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: jobportal
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+        command:
+        - redis-server
+        - --appendonly
+        - "yes"
+        - --requirepass
+        - "$(REDIS_PASSWORD)"
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: jobportal-secrets
+              key: REDIS_PASSWORD
+        volumeMounts:
+        - name: redis-storage
+          mountPath: /data
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: redis-storage
+        persistentVolumeClaim:
+          claimName: redis-pvc
+
+---
+# ========================================
+# REDIS SERVICE
+# ========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: jobportal
+  labels:
+    app: redis
+spec:
+  ports:
+  - port: 6379
+    targetPort: 6379
+  selector:
+    app: redis
+  type: ClusterIP
+
+---
+# ========================================
+# REDIS PVC
+# ========================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+  namespace: jobportal
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: fast-ssd
+
+---
+# ========================================
+# JOBPORTAL BACKEND DEPLOYMENT
+# ========================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jobportal-backend
+  namespace: jobportal
+  labels:
+    app: jobportal-backend
+    version: v1.0.0
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: jobportal-backend
+  template:
+    metadata:
+      labels:
+        app: jobportal-backend
+        version: v1.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      containers:
+      - name: jobportal-backend
+        image: jobportal/backend:1.0.0
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        # Database Configuration
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres:5432/jobportal_db"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "postgres"
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: jobportal-secrets
+              key: SPRING_DATASOURCE_PASSWORD
+        
+        # Redis Configuration
+        - name: REDIS_HOST
+          value: "redis"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: jobportal-secrets
+              key: REDIS_PASSWORD
+        
+        # Email Configuration
+        - name: MAIL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: jobportal-secrets
+              key: MAIL_USERNAME
+        - name: MAIL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: jobportal-secrets
+              key: MAIL_PASSWORD
+        
+        # JWT Configuration
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: jobportal-secrets
+              key: JWT_SECRET
+        
+        # OpenAI Configuration
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: jobportal-secrets
+              key: OPENAI_API_KEY
+        
+        # ConfigMap values
+        envFrom:
+        - configMapRef:
+            name: jobportal-config
+        
+        volumeMounts:
+        - name: uploads-storage
+          mountPath: /app/uploads
+        
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          successThreshold: 1
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 30
+        
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+      
+      volumes:
+      - name: uploads-storage
+        persistentVolumeClaim:
+          claimName: jobportal-uploads-pvc
+      
+      securityContext:
+        fsGroup: 1001
+      
+      restartPolicy: Always
+      
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - jobportal-backend
+              topologyKey: kubernetes.io/hostname
+
+---
+# ========================================
+# JOBPORTAL BACKEND SERVICE
+# ========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: jobportal-backend
+  namespace: jobportal
+  labels:
+    app: jobportal-backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/actuator/prometheus"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: jobportal-backend
+
+---
+# ========================================
+# HORIZONTAL POD AUTOSCALER
+# ========================================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: jobportal-backend-hpa
+  namespace: jobportal
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: jobportal-backend
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+
+---
+# ========================================
+# INGRESS FOR EXTERNAL ACCESS
+# ========================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jobportal-backend-ingress
+  namespace: jobportal
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+    - api.jobportal.com
+    secretName: jobportal-tls
+  rules:
+  - host: api.jobportal.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: jobportal-backend
+            port:
+              number: 8080

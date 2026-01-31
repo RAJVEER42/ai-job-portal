@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Error Diagnostic Tool</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .test-section { background: #f5f5f5; padding: 15px; margin: 15px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; }
+        .log { margin-top: 10px; max-height: 300px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Network Error Diagnostic Tool</h1>
+        <p>This tool will help identify the exact network error you're experiencing with login.</p>
+        
+        <div class="test-section">
+            <h3>Step 1: Basic Connectivity Test</h3>
+            <button onclick="testBasicConnectivity()">Test Backend Connection</button>
+            <div id="connectivity-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Step 2: Login API Test</h3>
+            <button onclick="testLoginAPI()">Test Login API</button>
+            <div id="login-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Step 3: CORS Test</h3>
+            <button onclick="testCORS()">Test CORS Headers</button>
+            <div id="cors-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Step 4: Browser Environment Test</h3>
+            <button onclick="testBrowserEnvironment()">Check Browser Environment</button>
+            <div id="browser-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Live Console Log</h3>
+            <div id="console-log" class="log" style="background: #000; color: #00ff00; font-family: monospace;"></div>
+        </div>
+        
+        <div class="test-section warning">
+            <h3>📋 Instructions</h3>
+            <ol>
+                <li>Run each test in order</li>
+                <li>Note any errors that appear</li>
+                <li>Check the Live Console Log for detailed information</li>
+                <li>Report the specific error messages you see</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // Console logging setup
+        const consoleDiv = document.getElementById('console-log');
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        function logToDiv(message, type = 'log') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff6b6b' : '#00ff00';
+            consoleDiv.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            logToDiv(args.join(' '));
+            originalLog.apply(console, args);
+        };
+        
+        console.error = function(...args) {
+            logToDiv('ERROR: ' + args.join(' '), 'error');
+            originalError.apply(console, args);
+        };
+
+        async function testBasicConnectivity() {
+            const resultDiv = document.getElementById('connectivity-result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+            
+            try {
+                console.log('🔍 Testing basic connectivity to backend...');
+                
+                const response = await fetch('http://localhost:8080/api/jobs', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                console.log('📡 Response status:', response.status);
+                console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = '<div class="success">✅ Backend connection successful!</div>';
+                    console.log('✅ Backend is reachable');
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Backend returned status: ${response.status}</div>`;
+                    console.error('❌ Backend connection failed with status:', response.status);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Connection failed: ${error.message}</div>`;
+                console.error('❌ Network error:', error);
+            }
+        }
+
+        async function testLoginAPI() {
+            const resultDiv = document.getElementById('login-result');
+            resultDiv.innerHTML = '<p>Testing login API...</p>';
+            
+            try {
+                console.log('🔐 Testing login API endpoint...');
+                
+                const loginData = {
+                    email: 'demo@example.com',
+                    password: 'demo123'
+                };
+                
+                console.log('📤 Sending login request with data:', loginData);
+                
+                const response = await fetch('http://localhost:8080/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(loginData)
+                });
+                
+                console.log('📡 Login response status:', response.status);
+                console.log('📡 Login response headers:', Object.fromEntries(response.headers.entries()));
+                
+                const responseText = await response.text();
+                console.log('📦 Login response body:', responseText);
+                
+                if (response.ok) {
+                    try {
+                        const responseData = JSON.parse(responseText);
+                        if (responseData.success) {
+                            resultDiv.innerHTML = '<div class="success">✅ Login API working correctly!</div>';
+                            console.log('✅ Login API successful');
+                        } else {
+                            resultDiv.innerHTML = `<div class="error">❌ Login failed: ${responseData.message}</div>`;
+                            console.error('❌ Login API returned failure:', responseData);
+                        }
+                    } catch (parseError) {
+                        resultDiv.innerHTML = '<div class="error">❌ Invalid JSON response</div>';
+                        console.error('❌ JSON parse error:', parseError);
+                    }
+                } else {
+                    resultDiv.innerHTML = <div class="error">❌ Login API returned status: ${response.status}</div>
+                    console.error('❌ Login API failed with status:', response.status);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Login API error: ${error.message}</div>`;
+                console.error('❌ Login API network error:', error);
+            }
+        }
+
+        async function testCORS() {
+            const resultDiv = document.getElementById('cors-result');
+            resultDiv.innerHTML = '<p>Testing CORS...</p>';
+            
+            try {
+                console.log('🌐 Testing CORS configuration...');
+                
+                // Make an OPTIONS request to check CORS
+                const response = await fetch('http://localhost:8080/api/auth/login', {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': window.location.origin,
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'content-type'
+                    }
+                });
+                
+                console.log('📡 CORS response status:', response.status);
+                console.log('📡 CORS response headers:', Object.fromEntries(response.headers.entries()));
+                
+                const allowOrigin = response.headers.get('Access-Control-Allow-Origin');
+                const allowMethods = response.headers.get('Access-Control-Allow-Methods');
+                
+                if (allowOrigin) {
+                    resultDiv.innerHTML = '<div class="success">✅ CORS is configured correctly!</div>';
+                    console.log('✅ CORS headers present:', { allowOrigin, allowMethods });
+                } else {
+                    resultDiv.innerHTML = '<div class="warning">⚠️ CORS headers not found</div>';
+                    console.log('⚠️ CORS headers missing');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ CORS test error: ${error.message}</div>`;
+                console.error('❌ CORS test failed:', error);
+            }
+        }
+
+        function testBrowserEnvironment() {
+            const resultDiv = document.getElementById('browser-result');
+            console.log('🌐 Testing browser environment...');
+            
+            const info = {
+                userAgent: navigator.userAgent,
+                onLine: navigator.onLine,
+                cookieEnabled: navigator.cookieEnabled,
+                localStorage: typeof(Storage) !== "undefined",
+                fetch: typeof(fetch) !== "undefined",
+                currentOrigin: window.location.origin,
+                protocol: window.location.protocol
+            };
+            
+            console.log('🔍 Browser environment:', info);
+            
+            let html = '<div class="success">Browser Environment:</div><pre>';
+            Object.entries(info).forEach(([key, value]) => {
+                html += `${key}: ${value}\\n`;
+            });
+            html += '</pre>';
+            
+            // Check for potential issues
+            if (!info.onLine) {
+                html += '<div class="error">❌ Browser reports offline status</div>';
+            }
+            if (!info.cookieEnabled) {
+                html += '<div class="warning">⚠️ Cookies are disabled</div>';
+            }
+            if (!info.localStorage) {
+                html += '<div class="warning">⚠️ localStorage not available</div>';
+            }
+            if (!info.fetch) {
+                html += '<div class="error">❌ Fetch API not available</div>';
+            }
+            
+            resultDiv.innerHTML = html;
+        }
+
+        // Initial setup
+        console.log('🔧 Network Diagnostic Tool loaded');
+        console.log('📍 Current page origin:', window.location.origin);
+        console.log('🎯 Target backend: http://localhost:8080');
+    </script>
+</body>
+</html>

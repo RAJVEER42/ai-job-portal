@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <springProfile name="!production">
+        <!-- Development/Local logging configuration -->
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+        
+        <logger name="com.jobportal.backend" level="DEBUG" />
+        <logger name="org.springframework.web" level="DEBUG" />
+        <logger name="org.springframework.security" level="DEBUG" />
+        <logger name="org.hibernate.SQL" level="DEBUG" />
+        
+        <root level="INFO">
+            <appender-ref ref="CONSOLE" />
+        </root>
+    </springProfile>
+
+    <springProfile name="production">
+        <!-- Production JSON logging configuration -->
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <providers>
+                    <timestamp/>
+                    <version/>
+                    <logLevel/>
+                    <message/>
+                    <mdc/>
+                    <arguments/>
+                    <stackTrace/>
+                    <pattern>
+                        <pattern>
+                            {
+                                "timestamp": "%d{yyyy-MM-dd HH:mm:ss.SSS}",
+                                "level": "%level",
+                                "thread": "%thread",
+                                "logger": "%logger{36}",
+                                "message": "%message",
+                                "application": "jobportal-backend",
+                                "environment": "production"
+                            }
+                        </pattern>
+                    </pattern>
+                </providers>
+            </encoder>
+        </appender>
+
+        <!-- File appender for production logs -->
+        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>/var/log/jobportal/application.log</file>
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <providers>
+                    <timestamp/>
+                    <version/>
+                    <logLevel/>
+                    <message/>
+                    <mdc/>
+                    <arguments/>
+                    <stackTrace/>
+                    <pattern>
+                        <pattern>
+                            {
+                                "timestamp": "%d{yyyy-MM-dd HH:mm:ss.SSS}",
+                                "level": "%level",
+                                "thread": "%thread",
+                                "logger": "%logger{36}",
+                                "message": "%message",
+                                "application": "jobportal-backend",
+                                "environment": "production",
+                                "hostname": "${HOSTNAME:-unknown}"
+                            }
+                        </pattern>
+                    </pattern>
+                </providers>
+            </encoder>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>/var/log/jobportal/application.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+                <maxFileSize>100MB</maxFileSize>
+                <maxHistory>30</maxHistory>
+                <totalSizeCap>3GB</totalSizeCap>
+            </rollingPolicy>
+        </appender>
+
+        <!-- Security audit log -->
+        <appender name="SECURITY_AUDIT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>/var/log/jobportal/security-audit.log</file>
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <providers>
+                    <timestamp/>
+                    <message/>
+                    <mdc/>
+                    <pattern>
+                        <pattern>
+                            {
+                                "timestamp": "%d{yyyy-MM-dd HH:mm:ss.SSS}",
+                                "level": "%level",
+                                "message": "%message",
+                                "application": "jobportal-backend",
+                                "logType": "security-audit",
+                                "environment": "production"
+                            }
+                        </pattern>
+                    </pattern>
+                </providers>
+            </encoder>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>/var/log/jobportal/security-audit.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+                <maxHistory>90</maxHistory>
+            </rollingPolicy>
+        </appender>
+
+        <!-- Performance log -->
+        <appender name="PERFORMANCE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>/var/log/jobportal/performance.log</file>
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <providers>
+                    <timestamp/>
+                    <message/>
+                    <mdc/>
+                    <pattern>
+                        <pattern>
+                            {
+                                "timestamp": "%d{yyyy-MM-dd HH:mm:ss.SSS}",
+                                "level": "%level",
+                                "message": "%message",
+                                "application": "jobportal-backend",
+                                "logType": "performance",
+                                "environment": "production"
+                            }
+                        </pattern>
+                    </pattern>
+                </providers>
+            </encoder>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>/var/log/jobportal/performance.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+                <maxHistory>7</maxHistory>
+            </rollingPolicy>
+        </appender>
+
+        <!-- Logger configurations for production -->
+        <logger name="SECURITY_AUDIT" level="INFO" additivity="false">
+            <appender-ref ref="SECURITY_AUDIT" />
+        </logger>
+        
+        <logger name="PERFORMANCE" level="INFO" additivity="false">
+            <appender-ref ref="PERFORMANCE" />
+        </logger>
+
+        <!-- Application loggers -->
+        <logger name="com.jobportal.backend" level="INFO" />
+        <logger name="org.springframework.security" level="WARN" />
+        <logger name="org.hibernate.SQL" level="WARN" />
+        
+        <!-- Root logger -->
+        <root level="INFO">
+            <appender-ref ref="CONSOLE" />
+            <appender-ref ref="FILE" />
+        </root>
+    </springProfile>
+
+    <!-- Test profile - minimal logging -->
+    <springProfile name="test">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+        
+        <root level="WARN">
+            <appender-ref ref="CONSOLE" />
+        </root>
+    </springProfile>
+</configuration>

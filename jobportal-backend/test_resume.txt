@@ -1,0 +1,49 @@
+RAJVEER BISHNOI
+Email: rajveer@example.com
+Phone: +91-9876543210
+Location: Bengaluru, Karnataka, India
+
+PROFESSIONAL SUMMARY
+Results-driven Software Engineer with 3 years of experience in full-stack development.
+Expertise in Java, Spring Boot, React, and cloud technologies. Strong problem-solving
+skills with a track record of delivering scalable applications.
+
+TECHNICAL SKILLS
+Languages: Java, Python, JavaScript, TypeScript, SQL
+Frameworks: Spring Boot, React.js, Node.js, Express.js
+Databases: PostgreSQL, MySQL, MongoDB, Redis
+Cloud & DevOps: AWS, Docker, Kubernetes, Jenkins, Git
+Tools: IntelliJ IDEA, VS Code, Postman, Maven, npm
+
+PROFESSIONAL EXPERIENCE
+
+Senior Software Engineer | Tech Solutions Pvt Ltd | Jan 2023 - Present
+- Led development of microservices architecture serving 50,000+ users
+- Implemented REST APIs using Spring Boot with JWT authentication
+- Reduced API response time by 40% through database optimization
+- Mentored 3 junior developers in best practices
+
+Software Engineer | StartupXYZ | Jun 2021 - Dec 2022
+- Built e-commerce platform backend handling 10,000+ daily transactions
+- Integrated payment gateways (Stripe, Razorpay) and email notifications
+- Developed React frontend with responsive design
+- Implemented CI/CD pipeline using Docker and Jenkins
+
+EDUCATION
+
+Bachelor of Technology in Computer Science
+Indian Institute of Technology, Bombay
+Graduated: May 2021
+CGPA: 8.7/10
+
+CERTIFICATIONS
+- AWS Certified Solutions Architect
+- Oracle Certified Java Programmer (OCP)
+- MongoDB Certified Developer
+
+PROJECTS
+
+AI-Powered Job Portal
+- Built full-stack application with Spring Boot and React
+- Integrated OpenAI GPT-4 for resume parsing
+- Deployed on AWS using Docker containers

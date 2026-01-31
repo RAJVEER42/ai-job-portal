@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload Testing Interface</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        .success {
+            border-color: #4caf50;
+            background: #f1f8e9;
+        }
+        .error {
+            border-color: #f44336;
+            background: #ffebee;
+        }
+        .warning {
+            border-color: #ff9800;
+            background: #fff3e0;
+        }
+        .info {
+            border-color: #2196f3;
+            background: #e3f2fd;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .step {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 File Upload 403 Error - Testing Interface</h1>
+            <p>Use this interface to test and verify the file upload fix</p>
+        </div>
+
+        <div class="section info">
+            <h3>📋 Quick Test Steps</h3>
+            <div class="step">
+                <strong>Step 1:</strong> Ensure both servers are running
+                <br>• Frontend: <a href="http://localhost:3000" target="_blank">http://localhost:3000</a>
+                <br>• Backend: <a href="http://localhost:8080/api/jobs" target="_blank">http://localhost:8080/api/jobs</a>
+            </div>
+            <div class="step">
+                <strong>Step 2:</strong> Use these test credentials
+                <br>• Email: <code>uploadtest@example.com</code>
+                <br>• Password: <code>password123</code>
+            </div>
+            <div class="step">
+                <strong>Step 3:</strong> Test file upload on Profile page
+                <br>• Use the created <code>test-resume-proper.doc</code> file
+                <br>• Verify error handling with invalid file types
+            </div>
+        </div>
+
+        <div class="section success">
+            <h3>✅ What's Fixed</h3>
+            <ul>
+                <li><strong>Authentication:</strong> 401/403 errors now redirect to login automatically</li>
+                <li><strong>File Validation:</strong> Clear messages for invalid file types</li>
+                <li><strong>Error Handling:</strong> Specific feedback for different error scenarios</li>
+                <li><strong>User Experience:</strong> Better loading states and success messages</li>
+            </ul>
+        </div>
+
+        <div class="section warning">
+            <h3>⚠️ File Type Requirements</h3>
+            <p><strong>Supported:</strong> PDF (.pdf), Word Document (.doc, .docx)</p>
+            <p><strong>Not Supported:</strong> Text files (.txt), Images, Other formats</p>
+            <p><strong>Size Limit:</strong> Maximum 10MB</p>
+        </div>
+
+        <div class="section">
+            <h3>🧪 Test Authentication</h3>
+            <button onclick="testBackend()">Test Backend Connection</button>
+            <button onclick="registerUser()">Register Test User</button>
+            <button onclick="loginUser()">Login Test User</button>
+            <div id="authStatus" class="status"></div>
+        </div>
+
+        <div class="section">
+            <h3>📤 Test File Upload</h3>
+            <input type="file" id="fileInput" accept=".pdf,.doc,.docx">
+            <button onclick="uploadFile()">Test Upload</button>
+            <div id="uploadStatus" class="status"></div>
+        </div>
+
+        <div class="section">
+            <h3>🔍 Debug Information</h3>
+            <button onclick="checkLocalStorage()">Check Token</button>
+            <button onclick="clearStorage()">Clear Storage</button>
+            <div id="debugInfo" class="status"></div>
+        </div>
+
+        <div class="section info">
+            <h3>📄 Error Code Reference</h3>
+            <ul>
+                <li><strong>400:</strong> Invalid file format - Only PDF, DOC, DOCX allowed</li>
+                <li><strong>401/403:</strong> Authentication required - Will redirect to login</li>
+                <li><strong>413:</strong> File too large - Maximum 10MB allowed</li>
+                <li><strong>500:</strong> Server error - Try again later</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let authToken = null;
+
+        async function testBackend() {
+            const status = document.getElementById('authStatus');
+            try {
+                const response = await fetch('http://localhost:8080/api/jobs');
+                if (response.ok) {
+                    status.innerHTML = '<span style="color: green;">✅ Backend is running and accessible</span>';
+                    status.className = 'status success';
+                } else {
+                    status.innerHTML = '<span style="color: orange;">⚠️ Backend responding but may have issues</span>';
+                    status.className = 'status warning';
+                }
+            } catch (error) {
+                status.innerHTML = '<span style="color: red;">❌ Backend not accessible. Is it running on port 8080?</span>';
+                status.className = 'status error';
+            }
+        }
+
+        async function registerUser() {
+            const status = document.getElementById('authStatus');
+            try {
+                const response = await fetch('http://localhost:8080/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fullName: 'Upload Test User',
+                        email: 'uploadtest@example.com',
+                        password: 'password123',
+                        role: 'CANDIDATE'
+                    })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    status.innerHTML = '<span style="color: green;">✅ Test user registered successfully</span>';
+                    status.className = 'status success';
+                } else if (data.message?.includes('already registered')) {
+                    status.innerHTML = '<span style="color: orange;">⚠️ Test user already exists</span>';
+                    status.className = 'status warning';
+                } else {
+                    status.innerHTML = `<span style="color: red;">❌ Registration failed: ${data.message}</span>`;
+                    status.className = 'status error';
+                }
+            } catch (error) {
+                status.innerHTML = `<span style="color: red;">❌ Registration error: ${error.message}</span>`;
+                status.className = 'status error';
+            }
+        }
+
+        async function loginUser() {
+            const status = document.getElementById('authStatus');
+            try {
+                const response = await fetch('http://localhost:8080/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'uploadtest@example.com',
+                        password: 'password123'
+                    })
+                });
+                const data = await response.json();
+                
+                if (data.success && data.data.accessToken) {
+                    authToken = data.data.accessToken;
+                    status.innerHTML = '<span style="color: green;">✅ Login successful! Token obtained</span>';
+                    status.className = 'status success';
+                    
+                    // Store in localStorage for testing
+                    localStorage.setItem('accessToken', authToken);
+                } else {
+                    status.innerHTML = `<span style="color: red;">❌ Login failed: ${data.message}</span>`;
+                    status.className = 'status error';
+                }
+            } catch (error) {
+                status.innerHTML = `<span style="color: red;">❌ Login error: ${error.message}</span>`;
+                status.className = 'status error';
+            }
+        }
+
+        async function uploadFile() {
+            const status = document.getElementById('uploadStatus');
+            const fileInput = document.getElementById('fileInput');
+            
+            if (!fileInput.files[0]) {
+                status.innerHTML = '<span style="color: orange;">⚠️ Please select a file first</span>';
+                status.className = 'status warning';
+                return;
+            }
+
+            if (!authToken) {
+                status.innerHTML = '<span style="color: red;">❌ Please login first to get authentication token</span>';
+                status.className = 'status error';
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                status.innerHTML = '<span style="color: blue;">⏳ Uploading file...</span>';
+                status.className = 'status info';
+
+                const response = await fetch('http://localhost:8080/api/files/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    status.innerHTML = '<span style="color: green;">🎉 File uploaded successfully!</span>';
+                    status.className = 'status success';
+                } else {
+                    let errorMsg = `❌ Upload failed (${response.status}): ${data.message || response.statusText}`;
+                    
+                    if (response.status === 401 || response.status === 403) {
+                        errorMsg += '<br><strong>Fix:</strong> Authentication issue - try logging in again';
+                    } else if (response.status === 400) {
+                        errorMsg += '<br><strong>Fix:</strong> Check file format (PDF/DOC/DOCX only)';
+                    } else if (response.status === 413) {
+                        errorMsg += '<br><strong>Fix:</strong> File too large (max 10MB)';
+                    }
+                    
+                    status.innerHTML = `<span style="color: red;">${errorMsg}</span>`;
+                    status.className = 'status error';
+                }
+            } catch (error) {
+                status.innerHTML = `<span style="color: red;">❌ Network error: ${error.message}</span>`;
+                status.className = 'status error';
+            }
+        }
+
+        function checkLocalStorage() {
+            const debug = document.getElementById('debugInfo');
+            const token = localStorage.getItem('accessToken');
+            const user = localStorage.getItem('user');
+            
+            debug.innerHTML = `
+                <strong>localStorage Contents:</strong><br>
+                • Token: ${token ? token.substring(0, 20) + '...' : 'Not found'}<br>
+                • User: ${user ? 'Present' : 'Not found'}<br>
+                • Current Auth Token: ${authToken ? authToken.substring(0, 20) + '...' : 'Not set'}
+            `;
+            debug.className = 'status info';
+        }
+
+        function clearStorage() {
+            localStorage.clear();
+            authToken = null;
+            const debug = document.getElementById('debugInfo');
+            debug.innerHTML = '<span style="color: green;">✅ Storage cleared</span>';
+            debug.className = 'status success';
+        }
+
+        // Auto-test backend on page load
+        window.onload = function() {
+            testBackend();
+        };
+    </script>
+</body>
+</html>

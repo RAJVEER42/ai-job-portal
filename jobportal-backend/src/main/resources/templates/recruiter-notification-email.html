@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Application Received</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background-color: white; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-align: center; padding: 30px; }
+        .content { padding: 30px; }
+        .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; }
+        .btn { display: inline-block; padding: 12px 24px; background-color: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 15px 0; }
+        .highlight-box { background-color: #f8f9fa; border-left: 4px solid #667eea; padding: 20px; margin: 20px 0; }
+        .candidate-info { background-color: #e8f5e8; padding: 15px; border-radius: 5px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📧 New Job Application</h1>
+        </div>
+        
+        <div class="content">
+            <h2>New Application Received!</h2>
+            <p>Hello,</p>
+            
+            <p>Great news! You have received a new application for your job posting.</p>
+            
+            <div class="highlight-box">
+                <h3>📋 Job Details</h3>
+                <p><strong>Position:</strong> <span th:text="${data.jobTitle}">Job Title</span></p>
+                <p><strong>Application Date:</strong> <span th:text="${#temporals.format(data.applicationDate, 'MMM dd, yyyy hh:mm a')}">Application Date</span></p>
+            </div>
+            
+            <div class="candidate-info">
+                <h3>👤 Candidate Information</h3>
+                <p><strong>Candidate Name:</strong> <span th:text="${data.candidateName}">Candidate Name</span></p>
+                <p><em>View full application details in your recruiter dashboard.</em></p>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a th:href="${data.dashboardUrl}" class="btn">View Application in Dashboard</a>
+            </div>
+            
+            <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                💡 <strong>Tip:</strong> Respond to applications quickly to maintain candidate engagement and improve your hiring success rate!
+            </div>
+            
+            <h3>🎯 What's Next?</h3>
+            <ul>
+                <li>Review the candidate's resume and application details</li>
+                <li>Assess their qualifications against your requirements</li>
+                <li>Schedule an interview if they're a good fit</li>
+                <li>Update the application status to keep candidates informed</li>
+            </ul>
+        </div>
+        
+        <div class="footer">
+            <p>&copy; <span th:text="${currentYear}">2024</span> <span th:text="${companyName}">JobPortal</span>. All rights reserved.</p>
+            <p>You received this notification because you posted a job on our platform.</p>
+        </div>
+    </div>
+</body>
+</html>
